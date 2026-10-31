@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agente de Compras</title>
+<style>
+  :root { --bg:#f7f5f2; --card:#fff; --tx:#1f1f1f; --mut:#666; --ac:#c8102e; --bd:#e3ded8; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#161616; --card:#222; --tx:#eee; --mut:#aaa; --ac:#ff5a6e; --bd:#333; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--tx); font:16px/1.5 system-ui, sans-serif; }
+  main { max-width: 920px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { margin: 0 0 4px; font-size: 1.6rem; }
+  .sub { color: var(--mut); margin: 0 0 20px; }
+  .card { background: var(--card); border: 1px solid var(--bd); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+  textarea { width: 100%; min-height: 70px; padding: 10px; border-radius: 8px; border: 1px solid var(--bd); background: var(--bg); color: var(--tx); font: inherit; }
+  button { background: var(--ac); color: #fff; border: 0; border-radius: 8px; padding: 10px 16px; font: inherit; font-weight: 600; cursor: pointer; margin-top: 8px; }
+  button:disabled { opacity: .6; cursor: wait; }
+  #resposta { white-space: pre-wrap; }
+  .rastro { font: 13px/1.4 ui-monospace, monospace; color: var(--mut); }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--bd); }
+  td.n { text-align: right; font-variant-numeric: tabular-nums; }
+  .aviso { color: var(--ac); font-weight: 600; }
+  .tabela { overflow-x: auto; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Agente de compras do restaurante</h1>
+  <p class="sub">Sugere a lista da semana por fornecedor e explica o porquê. <strong>Dados fictícios.</strong>
+    A IA (Gemini) só escolhe as ferramentas e explica; as contas são feitas em Python e podem ser conferidas na tabela abaixo.</p>
+
+  <div class="card">
+    <label for="pergunta"><strong>Pergunte ao agente</strong></label>
+    <textarea id="pergunta">Monte a lista de compras desta semana por fornecedor e explique o porquê de cada item.</textarea>
+    <button id="enviar">Perguntar</button>
+    <p class="sub" style="margin:8px 0 0">Outros exemplos: "Por que comprar tanta batata?" · "Algum fornecedor ficou abaixo do pedido mínimo?"</p>
+  </div>
+
+  <div class="card" id="saida" hidden>
+    <div id="resposta"></div>
+    <p class="rastro" id="rastro"></p>
+  </div>
+
+  <div class="card">
+    <strong>Lista calculada pelas ferramentas (sem IA)</strong>
+    <div id="lista" class="tabela">Carregando…</div>
+  </div>
+</main>
+<script>
+const brl = v => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+async function carregarLista() {
+  const r = await fetch("/api/lista");
+  const d = await r.json();
+  let h = "";
+  for (const p of Object.values(d.pedidos)) {
+    h += `<h3>${esc(p.fornecedor)} <small class="sub">(entrega ${esc(p.entrega)})</small></h3>`;
+    if (!p.itens.length) { h += `<p class="sub">Nada a comprar.</p>`; continue; }
+    h += `<table><tr><th>Item</th><th class="n">Estoque</th><th class="n">Previsão</th><th class="n">Comprar</th><th class="n">Custo</th></tr>`;
+    for (const i of p.itens)
+      h += `<tr><td>${esc(i.nome)} <small class="sub">(${esc(i.unidade)})</small></td><td class="n">${i.estoque}</td><td class="n">${i.previsao_semana}</td><td class="n">${i.comprar}</td><td class="n">${brl(i.custo)}</td></tr>`;
+    h += `<tr><td colspan="4"><strong>Total</strong> (mínimo ${brl(p.pedido_minimo)})</td><td class="n"><strong>${brl(p.total)}</strong></td></tr></table>`;
+    if (p.abaixo_do_minimo) h += `<p class="aviso">Abaixo do pedido mínimo do fornecedor.</p>`;
+  }
+  h += `<p><strong>Total geral: ${brl(d.total_geral)}</strong></p>`;
+  document.getElementById("lista").innerHTML = h;
+}
+
+document.getElementById("enviar").onclick = async (ev) => {
+  const btn = ev.target;
+  btn.disabled = true; btn.textContent = "Pensando…";
+  const saida = document.getElementById("saida");
+  try {
+    const r = await fetch("/api/sugerir", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pergunta: document.getElementById("pergunta").value }) });
+    const d = await r.json();
+    saida.hidden = false;
+    if (!r.ok) {
+      document.getElementById("resposta").textContent = d.detail || "Erro.";
+      document.getElementById("rastro").textContent = "";
+    } else {
+      document.getElementById("resposta").textContent = d.resposta;
+      document.getElementById("rastro").textContent = d.ferramentas.length
+        ? "Ferramentas usadas: " + d.ferramentas.map(f => f.ferramenta + (Object.keys(f.argumentos).length ? "(" + Object.values(f.argumentos).join(", ") + ")" : "()")).join(" → ")
+        : "Nenhuma ferramenta usada.";
+    }
+  } catch (e) {
+    saida.hidden = false;
+    document.getElementById("resposta").textContent = "Falha de rede.";
+  } finally {
+    btn.disabled = false; btn.textContent = "Perguntar";
+  }
+};
+carregarLista();
+</script>
+</body>
+</html>
