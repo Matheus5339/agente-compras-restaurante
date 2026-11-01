@@ -8,7 +8,7 @@ restaurante pequeno e **explica o porquê** de cada item.
 > por 7 anos, com 4 fornecedores e equipe de 7 pessoas, e fazer o pedido semanal
 > era uma das tarefas que mais tomavam tempo.
 
-**Demo no ar:** _(link após o deploy)_
+**Demo no ar:** https://agente-compras-restaurante.calmwave-44962e56.brazilsouth.azurecontainerapps.io (o primeiro acesso pode levar alguns segundos: o app desliga quando ninguém usa)
 
 ## O que ele faz
 
