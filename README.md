@@ -101,3 +101,5 @@ o problema, as regras de negócio a partir da minha experiência no restaurante 
 os critérios de custo e segurança; a IA gerou boa parte do código.
 
 Matheus de Oliveira Pereira · [github.com/Matheus5339](https://github.com/Matheus5339)
+
+Licença: [MIT](LICENSE).
