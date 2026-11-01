@@ -32,3 +32,18 @@ def test_limite_de_uso(monkeypatch):
 def test_pergunta_longa_rejeitada(monkeypatch):
     monkeypatch.setenv("GEMINI_API_KEY", "teste")
     assert cliente.post("/api/sugerir", json={"pergunta": "x" * 501}).status_code == 422
+
+
+def test_cota_do_provedor_vira_429_amigavel(monkeypatch):
+    class ErroCota(Exception):
+        code = 429
+
+    def estoura(p):
+        raise ErroCota("quota")
+
+    monkeypatch.setenv("GEMINI_API_KEY", "teste")
+    monkeypatch.setattr(main, "_chamadas", main.deque())
+    monkeypatch.setattr(main.agente, "executar", estoura)
+    r = cliente.post("/api/sugerir", json={})
+    assert r.status_code == 429
+    assert "Aguarde 1 minuto" in r.json()["detail"]

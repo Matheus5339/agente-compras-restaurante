@@ -12,14 +12,20 @@ from google.genai import types
 
 from app.ferramentas import DECLARACOES, FERRAMENTAS
 
-MODELO = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+MODELO = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
 MAX_PASSOS = 8
+# Tempo limite de 60 s por chamada: sem isso, uma chamada presa travava a requisição para sempre.
+# Sem novas tentativas automáticas: a cota grátis é pequena e o erro 429 já vira aviso na tela.
+OPCOES_HTTP = types.HttpOptions(timeout=60_000, retry_options=types.HttpRetryOptions(attempts=1))
 
 INSTRUCOES = """Você é o assistente de compras de um restaurante pequeno (dados fictícios).
 Objetivo: sugerir a lista de compras da semana POR FORNECEDOR e explicar o porquê.
 
 Regras:
 - Use SEMPRE as ferramentas para obter números. Nunca invente quantidade, preço ou estoque.
+- Use o MÍNIMO de chamadas (a cota é limitada). Para a lista da semana, chame só
+  montar_lista_compras: ela já traz estoque, previsão, tendência (variacao_4_semanas_pct),
+  perecível e custo de cada item. Use as outras ferramentas só para perguntas específicas.
 - Não refaça contas: repita os valores que as ferramentas devolverem.
 - Para cada item comprado, explique em uma frase curta (ex.: consumo subindo, estoque abaixo
   da previsão, perecível sem estoque de segurança).
@@ -32,7 +38,7 @@ Regras:
 
 def _cliente() -> genai.Client:
     # A chave vem da variável de ambiente GEMINI_API_KEY (nunca do código).
-    return genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+    return genai.Client(api_key=os.environ["GEMINI_API_KEY"], http_options=OPCOES_HTTP)
 
 
 def executar(pergunta: str, cliente=None) -> dict:

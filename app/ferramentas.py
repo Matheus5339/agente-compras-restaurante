@@ -62,7 +62,8 @@ def calcular_compra(produto_id: str) -> dict:
     arredondada para cima no múltiplo da embalagem do fornecedor.
     """
     p = _produto(produto_id)
-    previsao = prever_consumo(produto_id)["previsao_semana"]
+    consumo = prever_consumo(produto_id)
+    previsao = consumo["previsao_semana"]
     seguranca = 0.0 if p["perecivel"] else previsao * MARGEM_SEGURANCA
     necessidade = previsao + seguranca - p["estoque"]
     if necessidade <= 0:
@@ -76,6 +77,8 @@ def calcular_compra(produto_id: str) -> dict:
         "fornecedor": p["fornecedor"],
         "estoque": p["estoque"],
         "previsao_semana": previsao,
+        "variacao_4_semanas_pct": consumo["variacao_4_semanas_pct"],
+        "perecivel": p["perecivel"],
         "estoque_seguranca": round(seguranca, 1),
         "embalagem": p["embalagem"],
         "comprar": quantidade,

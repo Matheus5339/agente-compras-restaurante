@@ -50,6 +50,11 @@
 </main>
 <script>
 const brl = v => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+// Markdown mínimo da resposta: **negrito**, *itálico* e listas com "* ".
+const md = t => esc(t)
+  .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+  .replace(/^(\s*)\* /gm, "$1• ")
+  .replace(/\*(.+?)\*/g, "<em>$1</em>");
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
 async function carregarLista() {
@@ -82,7 +87,7 @@ document.getElementById("enviar").onclick = async (ev) => {
       document.getElementById("resposta").textContent = d.detail || "Erro.";
       document.getElementById("rastro").textContent = "";
     } else {
-      document.getElementById("resposta").textContent = d.resposta;
+      document.getElementById("resposta").innerHTML = md(d.resposta);
       document.getElementById("rastro").textContent = d.ferramentas.length
         ? "Ferramentas usadas: " + d.ferramentas.map(f => f.ferramenta + (Object.keys(f.argumentos).length ? "(" + Object.values(f.argumentos).join(", ") + ")" : "()")).join(" → ")
         : "Nenhuma ferramenta usada.";
